@@ -14,7 +14,7 @@ class Plates:
             self.centers.nodes[i]["plate"]=-1
         for i in range(numberPlates):
             self.centers.nodes[seeds[i]]["plate"]=i
-        return self.centers,seeds
+        return seeds
     def _colorPlates(self,queue):
         if(len(queue)==0):
             return
@@ -34,8 +34,14 @@ class Plates:
                 queue.remove(index)
         self._colorPlates(queue)
     def generatePlates(self,numberPlates):
-        newCenters,seeds=self._seed(numberPlates)
+        seeds=self._seed(numberPlates)
         self._colorPlates(seeds)
-        return self.centers
+        
+        self.plates=[]
+        platesNumber=np.array([p for _,p in self.centers.nodes.data("plate")],dtype=int)
+        for i in range(numberPlates):
+            sub=[i for i,p in enumerate(platesNumber) if p==i]
+            self.plates.append(nx.subgraph(self.centers,list(sub)))        
+        return self.centers,self.plates
         
         
