@@ -52,6 +52,11 @@ class Tiling:
         corners=nx.Graph()
         corners.add_nodes_from(list(zip(np.arange(len(sv.vertices)),[{"position":p,"touches":[]} for p in sv.vertices])))
         
+        #ensure the the polygon is clockwise oriented and correct it if not
+        for i in range(len(sv.regions)):
+            if(np.dot(np.cross(sv.points[i],sv.vertices[sv.regions[i][0]]),sv.vertices[sv.regions[i][1]])>0):
+                sv.regions[i].reverse()
+        
         for region in sv.regions:
             n=len(region)
             cornerLinks=[(region[i],region[(i+1)%n]) for i in range(len(region))]
