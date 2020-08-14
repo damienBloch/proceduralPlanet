@@ -2,6 +2,9 @@ import numpy as np
 from scipy.spatial import SphericalVoronoi
 import networkx as nx
 
+def lengthSpherical(a,b):
+    return np.arccos(np.sum(a*b,axis=-1))
+
 class Tiling:
     """Generates tiling on the sphere.
     
@@ -44,7 +47,7 @@ class Tiling:
         sv=self.generate(N,iterate)
         
         centers=nx.Graph()
-        centers.add_nodes_from(list(zip(np.arange(len(sv.regions)),[{"corners":p} for p in sv.regions])))
+        centers.add_nodes_from(list(zip(np.arange(len(sv.regions)),[{"corners":p,"center":center,"area":A} for p,center,A in zip(sv.regions,sv.points,sv.calculate_areas())])))
         
         corners=nx.Graph()
         corners.add_nodes_from(list(zip(np.arange(len(sv.vertices)),[{"position":p,"touches":[]} for p in sv.vertices])))
@@ -60,14 +63,17 @@ class Tiling:
         for region in sv.regions:
             n=len(region)
             cornerLinks=[(region[i],region[(i+1)%n]) for i in range(len(region))]
-            corners.add_edges_from(cornerLinks)       
+            corners.add_edges_from(cornerLinks)
+            
+        for (i,j) in corners.edges:
+            corners.edges[i,j]["length"]=lengthSpherical(corners.nodes[i]["position"],corners.nodes[j]["position"])
+            
         for i in range(corners.number_of_nodes()):
             l=corners.nodes[i]["touches"]
             n=len(l)
             centerLinks=[(l[j],l[(j+1)%n]) for j in range(n)]
-            centers.add_edges_from(centerLinks)    
-        
-        return sv,centers,corners
+            centers.add_edges_from(centerLinks)            
+        return centers,corners
         
         
         
