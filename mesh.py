@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.spatial import SphericalVoronoi
+import networkx as nx
 
 class Tiling:
     """Generates tiling on the sphere.
@@ -22,10 +23,10 @@ class Tiling:
         p=2*np.pi*v
         points=np.array([np.cos(l)*np.cos(p),np.cos(l)*np.sin(p),np.sin(l)]).transpose()
         return points
-    def _relaxPoints(self,points,iterate=30):
+    def _relaxPoints(self,points,iterate=5):
         """Relaxes a set of point to have a more organic and uniform distribution.
         
-        Tis is done by doing a couple tens of iteration of Lloyd relaxation by replacing the Voronoi cell points by the baricenter of the corners of the Voronoi cells.
+        This is done by doing a couple tens of iteration of Lloyd relaxation by replacing the Voronoi cell points by the baricenter of the corners of the Voronoi cells.
         """
         for i in range(iterate):
             sv=SphericalVoronoi(points)
@@ -33,9 +34,41 @@ class Tiling:
                 points[i]=np.mean(sv.vertices[sv.regions[i]],axis=0)
                 points[i]/=np.linalg.norm(points[i])
         return points
-    def generate(self,N):
+    def generate(self,N,iterate=5):
         points=self._samplePoints(N)
-        relaxedPoints=self._relaxPoints(points)
+        relaxedPoints=self._relaxPoints(points,iterate)
         sv=SphericalVoronoi(relaxedPoints)
         sv.sort_vertices_of_regions()
         return sv
+    def createGraph(self,N,iterate=5):
+        sv=self.generate(N,iterate)
+        
+        centers=nx.Graph()
+        centers.add_nodes_from(list(zip(np.arange(len(sv.regions)),[{"corners":p} for p in sv.regions])))
+        
+        corners=nx.Graph()
+        corners.add_nodes_from(list(zip(np.arange(len(sv.vertices)),[{"position":p,"touches":[]} for p in sv.vertices])))
+        
+        for region in sv.regions:
+            n=len(region)
+            cornerLinks=[(region[i],region[(i+1)%n]) for i in range(len(region))]
+            corners.add_edges_from(cornerLinks)
+            
+        for i in range(centers.number_of_nodes()):
+            for corner in centers.nodes[i]["corners"]:
+                corners.nodes[corner]["touches"].append(i)
+        for region in sv.regions:
+            n=len(region)
+            cornerLinks=[(region[i],region[(i+1)%n]) for i in range(len(region))]
+            corners.add_edges_from(cornerLinks)       
+        for i in range(corners.number_of_nodes()):
+            l=corners.nodes[i]["touches"]
+            n=len(l)
+            centerLinks=[(l[j],l[(j+1)%n]) for j in range(n)]
+            centers.add_edges_from(centerLinks)    
+        
+        return sv,centers,corners
+        
+        
+        
+        
