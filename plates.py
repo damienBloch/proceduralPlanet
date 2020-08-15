@@ -1,6 +1,7 @@
 import numpy as np
 import networkx as nx
 import sys
+from tqdm import tqdm
 
 sys.setrecursionlimit(10**6) 
 
@@ -57,14 +58,78 @@ class Plates:
             p=plates[n["plate"]]
             n["speed"]=np.cross(n["center"],p.rotationAxis)*p.rotationSpeed
         return centers,plates
-    def platesElevation(self,plates,centers):
+    def platesElevation(self,plates,centers,flood=0.7):
         for p in plates:
-            if(self.rng.rand()<0.6):
-                p.elevation=self.rng.normal(loc=-3,scale=0.5)
+            if(self.rng.rand()<flood):
+                p.elevation=self.rng.normal(loc=-7.5,scale=0.5)
             else:
                 p.elevation=self.rng.normal(loc=1.5,scale=0.2)
         for i in centers.nodes:
             n=centers.nodes[i]
             n["elevation"]=plates[n["plate"]].elevation
         return centers,plates
+    def computePressure(self,plates,centers,corners,parameters):
+        border=[(i,j,k,l) for (i,j,(k,l)) in corners.edges.data("separates") if centers.nodes[k]["plate"]!=centers.nodes[l]["plate"]]
+        for (i,j,k,l) in tqdm(border,desc="Computing plates collision"):
+            normal=centers.nodes[k]["center"]-centers.nodes[l]["center"]
+            normal/=np.linalg.norm(normal)
+            vrel=centers.nodes[k]["speed"]-centers.nodes[l]["speed"]
+            vrelNorm=np.dot(normal,vrel)
+            if("pressure" in centers.nodes[k]):
+                centers.nodes[k]["pressure"]-=vrelNorm/200*corners.edges[i,j]["length"]*parameters.radius
+            else:
+                centers.nodes[k]["pressure"]=-vrelNorm/200*corners.edges[i,j]["length"]*parameters.radius
+
+            if("pressure" in centers.nodes[l]):
+                centers.nodes[l]["pressure"]-=vrelNorm/200*corners.edges[i,j]["length"]*parameters.radius
+            else:
+                centers.nodes[l]["pressure"]=-vrelNorm/200*corners.edges[i,j]["length"]*parameters.radius
+        return centers,plates
+    def computeElevation(self,plates,centers,corners,parameters):
+        border=[(i,j,k,l) for (i,j,(k,l)) in corners.edges.data("separates") if centers.nodes[k]["plate"]!=centers.nodes[l]["plate"]]
+        for (i,j,k,l) in tqdm(border,desc="Compute elevation"):
+            node_k=centers.nodes[k]
+            node_l=centers.nodes[l]
+            plate_k=plates[node_k["plate"]]
+            plate_l=plates[node_l["plate"]]
+            #continental collision
+            if(plate_k.elevation>0 and plate_l.elevation>0):
+                addedElevation=0
+                if node_k["pressure"]>0:
+                    addedElevation+=node_k["pressure"]/(node_k["area"]*parameters.radius**2)**.5*3/2            
+                if node_l["pressure"]>0:
+                    addedElevation+=node_l["pressure"]/(node_l["area"]*parameters.radius**2)**.5*3/2
+                for onSamePlate in node_k["distances"]:
+                        centers.nodes[onSamePlate]["elevation"]+=np.exp(-(node_k["distances"][onSamePlate]*parameters.radius)**2/2/400**2)*addedElevation
+                for onSamePlate in node_l["distances"]:
+                    centers.nodes[onSamePlate]["elevation"]+=np.exp(-(node_l["distances"][onSamePlate]*parameters.radius)**2/2/400**2)*addedElevation
+            #subduction
+            def subduction(node_k,node_l):
+                if node_k["pressure"]>0:
+                    addedElevation=node_k["pressure"]/(node_k["area"]*parameters.radius**2)**.5*3
+                    for onSamePlate in node_k["distances"]:
+                        centers.nodes[onSamePlate]["elevation"]+=np.exp(-(node_k["distances"][onSamePlate]*parameters.radius)**2/2/300**2)*addedElevation
+                if node_l["pressure"]>0:
+                    addedElevation=-node_l["pressure"]/(node_l["area"]*parameters.radius**2)**.5
+                    for onSamePlate in node_l["distances"]:
+                        centers.nodes[onSamePlate]["elevation"]+=1/(1+node_l["distances"][onSamePlate]*parameters.radius/600)*addedElevation
+                    addedElevation=node_k["elevation"]-node_l["elevation"]   
+                    for onSamePlate in node_l["distances"]:
+                        centers.nodes[onSamePlate]["elevation"]+=1/(1+node_l["distances"][onSamePlate]*parameters.radius/200)*addedElevation
+            if(plate_k.elevation>0 and plate_l.elevation<=0):
+                subduction(node_k,node_l)
+            if(plate_l.elevation>0 and plate_k.elevation<=0):
+                subduction(node_l,node_k)
+            #dorsale
+            if(plate_k.elevation<0 and plate_l.elevation<0):
+                if(node_k["pressure"]<0 and node_l["pressure"]<0):
+                    elevation_difference=(node_k["elevation"]-node_l["elevation"])*.5
+                    addedElevation-=node_k["pressure"]/(node_k["area"]*parameters.radius**2)**.5/2*.2
+                    addedElevation-=node_l["pressure"]/(node_l["area"]*parameters.radius**2)**.5/2*.2
+                    for onSamePlate in node_l["distances"]:
+                        centers.nodes[onSamePlate]["elevation"]+=1/(1+node_l["distances"][onSamePlate]*parameters.radius/200)**2*(elevation_difference+addedElevation)
+                    for onSamePlate in node_k["distances"]:
+                        centers.nodes[onSamePlate]["elevation"]+=1/(1+node_k["distances"][onSamePlate]*parameters.radius/200)**2*(-elevation_difference+addedElevation)
+            return centers,plates
+
         
