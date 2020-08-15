@@ -40,8 +40,31 @@ class Plates:
         self.plates=[]
         platesNumber=np.array([p for _,p in self.centers.nodes.data("plate")],dtype=int)
         for i in range(numberPlates):
-            sub=[i for i,p in enumerate(platesNumber) if p==i]
+            sub=[k for k,p in enumerate(platesNumber) if p==i]
             self.plates.append(nx.subgraph(self.centers,list(sub)))        
         return self.centers,self.plates
-        
+    def randomSpeed(self,plates,centers):
+        numberPlates=len(plates)
+        platesRotationAxes=self.rng.normal(size=(numberPlates,3))
+        norm=np.linalg.norm(platesRotationAxes,axis=-1)
+        for i in range(3):
+            platesRotationAxes[:,i]/=norm
+        for i,a in enumerate(platesRotationAxes):
+            plates[i].rotationAxis=platesRotationAxes[i]
+            plates[i].rotationSpeed=self.rng.rand()*100
+        for i in centers.nodes:
+            n=centers.nodes[i]
+            p=plates[n["plate"]]
+            n["speed"]=np.cross(n["center"],p.rotationAxis)*p.rotationSpeed
+        return centers,plates
+    def platesElevation(self,plates,centers):
+        for p in plates:
+            if(self.rng.rand()<0.6):
+                p.elevation=self.rng.normal(loc=-3,scale=0.5)
+            else:
+                p.elevation=self.rng.normal(loc=1.5,scale=0.2)
+        for i in centers.nodes:
+            n=centers.nodes[i]
+            n["elevation"]=plates[n["plate"]].elevation
+        return centers,plates
         

@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.spatial import SphericalVoronoi
 import networkx as nx
+from tqdm import tqdm
 
 def lengthSpherical(a,b):
     return np.arccos(np.sum(a*b,axis=-1))
@@ -31,7 +32,7 @@ class Tiling:
         
         This is done by doing a couple tens of iteration of Lloyd relaxation by replacing the Voronoi cell points by the baricenter of the corners of the Voronoi cells.
         """
-        for i in range(iterate):
+        for i in tqdm(range(iterate),desc="Relaxing tiled mesh"):
             sv=SphericalVoronoi(points)
             for i in range(len(sv.points)):
                 points[i]=np.mean(sv.vertices[sv.regions[i]],axis=0)
@@ -72,12 +73,17 @@ class Tiling:
             
         for (i,j) in corners.edges:
             corners.edges[i,j]["length"]=lengthSpherical(corners.nodes[i]["position"],corners.nodes[j]["position"])
+            corners.edges[i,j]["separates"]=set(corners.nodes[i]["touches"]).intersection(corners.nodes[j]["touches"])
             
         for i in range(corners.number_of_nodes()):
             l=corners.nodes[i]["touches"]
             n=len(l)
             centerLinks=[(l[j],l[(j+1)%n]) for j in range(n)]
-            centers.add_edges_from(centerLinks)            
+            centers.add_edges_from(centerLinks) 
+        for (i,j) in centers.edges:
+            p1=centers.nodes[i]["center"]
+            p2=centers.nodes[j]["center"]
+            centers.edges[i,j]["length"]=lengthSpherical(p1,p2)
         return centers,corners
         
         
