@@ -121,15 +121,17 @@ class Plates:
             if(plate_l.elevation>0 and plate_k.elevation<=0):
                 subduction(node_l,node_k)
             #dorsale
+            addedElevation=1
             if(plate_k.elevation<0 and plate_l.elevation<0):
                 if(node_k["pressure"]<0 and node_l["pressure"]<0):
                     elevation_difference=(node_k["elevation"]-node_l["elevation"])*.5
-                    addedElevation-=node_k["pressure"]/(node_k["area"]*parameters.radius**2)**.5/2*.2
-                    addedElevation-=node_l["pressure"]/(node_l["area"]*parameters.radius**2)**.5/2*.2
+                    addedElevation-=node_k["pressure"]/(node_k["area"]*parameters.radius**2)**.5/2*.3
+                    addedElevation-=node_l["pressure"]/(node_l["area"]*parameters.radius**2)**.5/2*.3
                     for onSamePlate in node_l["distances"]:
-                        centers.nodes[onSamePlate]["elevation"]+=1/(1+node_l["distances"][onSamePlate]*parameters.radius/200)**2*(elevation_difference+addedElevation)
+                        centers.nodes[onSamePlate]["elevation"]+=1/(1+node_l["distances"][onSamePlate]*parameters.radius/200)**1.5*(elevation_difference+addedElevation)
                     for onSamePlate in node_k["distances"]:
-                        centers.nodes[onSamePlate]["elevation"]+=1/(1+node_k["distances"][onSamePlate]*parameters.radius/200)**2*(-elevation_difference+addedElevation)
-            return centers,plates
+                        centers.nodes[onSamePlate]["elevation"]+=1/(1+node_k["distances"][onSamePlate]*parameters.radius/200)**1.5*(-elevation_difference+addedElevation)
+            
+        return centers,plates
 
         

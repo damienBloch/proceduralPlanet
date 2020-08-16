@@ -50,6 +50,9 @@ class Tiling:
         centers=nx.Graph()
         centers.add_nodes_from(list(zip(np.arange(len(sv.regions)),[{"corners":p,"center":center,"area":A} for p,center,A in zip(sv.regions,sv.points,sv.calculate_areas())])))
         
+        for k in centers.nodes:
+            centers.nodes[k]["label"]=k
+        
         corners=nx.Graph()
         corners.add_nodes_from(list(zip(np.arange(len(sv.vertices)),[{"position":p,"touches":[]} for p in sv.vertices])))
         
