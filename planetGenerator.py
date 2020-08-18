@@ -1,23 +1,26 @@
 from planet import Planet,PlanetParameters
 import numpy as np
 from mesh_generator import meshSeeds,relaxMesh,createGraph
+from plates_generator import seedsPlates,colorPlates,platesElevation,platesDistanceMatrix
 from copy import deepcopy
 from timeit import timeit
 from si_prefix import si_format
 
 class PlanetGenerator:  
     
-    callbacks=[meshSeeds,relaxMesh,createGraph]
-    callbacksDescription=["Generate mesh seeds","Relax mesh points","Create graph"]
+    callbacks=[meshSeeds,relaxMesh,createGraph,seedsPlates,colorPlates,platesElevation,platesDistanceMatrix]
+    callbacksDescription=["Generate mesh seeds","Relax mesh points","Create graph","Pick plates seeds","Color plates","Pick plates type","Compute distance matrix whithin plates"]
     numberSteps=len(callbacks)    
     
-    def __init__(self,parameters,numberTiles,seed=0):
+    def __init__(self,parameters,numberTiles,seed=0,numberPlates=30,flood=0.6):
         self.planet=None
         self.construction=[{} for i in range(PlanetGenerator.numberSteps)]   
         self.parameters=parameters
         self.random=np.random.RandomState(seed)
         self.seed=seed
         self.numberTiles=numberTiles
+        self.numberPlates=numberPlates
+        self.flood=flood
         
     def build(self,start=0,stop=None):
         

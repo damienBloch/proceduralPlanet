@@ -4,6 +4,7 @@ import cartopy.crs as ccrs
 import types
 from scipy.spatial import SphericalVoronoi
 import networkx as nx
+from matplotlib import collections as mc
 
 def meshSeeds(planet,planetGenerator):
     
@@ -45,9 +46,12 @@ def relaxMesh(planet,planetGenerator):
     
 def createGraph(planet,planetGenerator):
     sv=SphericalVoronoi(planet.meshPoints)
+    sv.sort_vertices_of_regions()
+    
+
 
     centers=nx.Graph()
-    centers.add_nodes_from(list(zip(np.arange(len(sv.regions)),[{"corners":p,"center":center,"area":A} for p,center,A in zip(sv.regions,sv.points,sv.calculate_areas())])))
+    centers.add_nodes_from(list(zip(np.arange(len(sv.regions)),[{"corners":p,"center":center,"area":A*planet.parameters.radius**2} for p,center,A in zip(sv.regions,sv.points,sv.calculate_areas())])))
 
     for k in centers.nodes:
         centers.nodes[k]["label"]=k
@@ -56,8 +60,8 @@ def createGraph(planet,planetGenerator):
     corners.add_nodes_from(zip([i for i,_ in enumerate(sv.vertices)],[{"position":p,"touches":[]} for p in sv.vertices]))
 
     #ensure the the polygon is clockwise oriented and correct it if not
-    for i,(region,point) in enumerate(zip(sv.regions,sv.points)):
-        if(np.dot(np.cross(point,sv.vertices[region[0]]),sv.vertices[region[1]])>0):
+    for i in range(len(sv.regions)):
+        if(np.dot(np.cross(sv.points[i],sv.vertices[sv.regions[i][0]]),sv.vertices[sv.regions[i][1]])>0):
             sv.regions[i].reverse()
 
     for region in sv.regions:
@@ -75,7 +79,7 @@ def createGraph(planet,planetGenerator):
 
     #compute length of each border 
     for (i,j) in corners.edges:
-        corners.edges[i,j]["length"]=lengthSpherical(corners.nodes[i]["position"],corners.nodes[j]["position"])
+        corners.edges[i,j]["length"]=lengthSpherical(corners.nodes[i]["position"],corners.nodes[j]["position"])*planet.parameters.radius
         corners.edges[i,j]["separates"]=set(corners.nodes[i]["touches"]).intersection(corners.nodes[j]["touches"])
 
     for i in range(corners.number_of_nodes()):
@@ -86,14 +90,28 @@ def createGraph(planet,planetGenerator):
     for (i,j) in centers.edges:
         p1=centers.nodes[i]["center"]
         p2=centers.nodes[j]["center"]
-        centers.edges[i,j]["length"]=lengthSpherical(p1,p2)
+        centers.edges[i,j]["length"]=lengthSpherical(p1,p2)*planet.parameters.radius
     planet.meshCenters=centers
     planet.meshCorners=corners
     
     def plotTilesBorders(self,ax,*args,**kwargs):
-        [[planet.meshCorners.nodes[i]["position"],planet.meshCorners.nodes[j]["position"]] for (i,j) in planet.meshCorners.edges]
-        #lat,long=Projection().toLatLong(self.meshPoints,"deg")
-        #ax.scatter(long,lat,*args,transform=ccrs.PlateCarree(),**kwargs)
+        segments=np.array([[self.meshCorners.nodes[i]["position"],self.meshCorners.nodes[j]["position"]] for (i,j) in self.meshCorners.edges])
+        (x,y,z)=np.shape(segments)
+        segments=np.reshape(segments,(x*y,z))
+        lat,long=Projection().toLatLong(segments)
+        lat=np.reshape(lat,(x,y))
+        long=np.reshape(long,(x,y))
+        lines=[[(slong[0],slat[0]),(slong[1],slat[1])] for slat,slong in zip(lat,long)]
+        ax.add_collection(mc.LineCollection(lines,*args,transform=ccrs.Geodetic(),**kwargs))
     planet.plotTilesBorders=types.MethodType(plotTilesBorders,planet)
-        
     
+    def plotTilesJunctions(self,ax,*args,**kwargs):
+        segments=np.array([[self.meshCenters.nodes[i]["center"],self.meshCenters.nodes[j]["center"]] for (i,j) in self.meshCenters.edges])
+        (x,y,z)=np.shape(segments)
+        segments=np.reshape(segments,(x*y,z))
+        lat,long=Projection().toLatLong(segments)
+        lat=np.reshape(lat,(x,y))
+        long=np.reshape(long,(x,y))
+        lines=[[(slong[0],slat[0]),(slong[1],slat[1])] for slat,slong in zip(lat,long)]
+        ax.add_collection(mc.LineCollection(lines,*args,transform=ccrs.Geodetic(),**kwargs))
+    planet.plotTilesJunctions=types.MethodType(plotTilesJunctions,planet)   

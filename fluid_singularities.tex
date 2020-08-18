@@ -1,0 +1,51 @@
+\documentclass[12pt]{article}
+\usepackage[left=1in,right=1in,top=1in,bottom=1in]{geometry}
+
+
+\usepackage{graphicx}
+\usepackage{amsmath}
+
+\renewcommand{\vec}{\mathbf}
+\renewcommand{\overrightarrow}{\mathbf}
+
+\begin{document}
+\title{Vortices and sources on the sphere}
+\maketitle
+
+Let's determine the fluid velocity of singularities on the sphere $S^{3}$.
+
+Helmholz decomposition of the velocity:
+
+\[\vec{V}=\vec{\nabla} \times \vec{A}+\vec{\nabla} \phi\]
+We have
+\[\vec{\Delta} \vec{A}=-\vec{\nabla} \times \vec{V}=-\vec{\omega}\]
+and
+\[\Delta \phi=\vec{\nabla} \cdot \vec{V}=\sigma\]
+with
+\[\begin{aligned}
+ \vec{w}=\sum_{i} \Gamma_{i} \overrightarrow{r_{i}} \delta\left(\vec{r}-\overrightarrow{r_{i}}\right) \\
+\sigma =\sum_i m_{i} \delta\left(\vec{r}-\vec{r}_{i}\right)
+\end{aligned}\]
+
+The Green function $G$ for the laplacian on the sphere satisfies:
+$$
+\Delta G(\vec{r})=\delta\left(\vec{r}-\vec{r}\,'\right)
+$$
+and
+$$
+G(\vec{r})=\frac{\log \left(1-\vec{r} \cdot \vec{r}\,^{\prime}\right)}{4 \pi}
+$$
+With this,
+$$
+ \vec{A}=-\sum_{i} \frac{\Gamma_{i} \vec{r}_{i}}{4 \pi} \ln (1-\vec{r} \cdot \vec{r}_i) 
+$$
+and
+$$
+ \quad \sigma=\sum_{i} \frac{m_{i}}{4\pi} \ln (1-\vec{r}\cdot \vec{r}_i)
+$$
+\text { As a result } $$\vec{V}=\sum_{i} \frac{\Gamma_{i}}{4 \pi} \frac{\overrightarrow{r_{i}} \times \vec{r}}{1-\vec{r} \cdot \vec{r}_{i}}+\frac{m_{i}}{4 \pi} \frac{\vec{r}_{i}-\left(\vec{r}\cdot \vec{r}_{i}\right) \vec{r}}{1-\vec{r}\cdot \vec{r}_{i}}$$
+
+The singularities positions evolve as $\frac{d \vec{r}_{i}}{d t}=\vec{V}(\vec{r}_i)$ where in the sum, the term i is taken our.
+
+
+\end{document}
