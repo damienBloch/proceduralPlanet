@@ -9,8 +9,6 @@ from ortools.algorithms import pywrapknapsack_solver
 from graph_tool.all import *
 from scipy.linalg import pinv
 
-sys.setrecursionlimit(10**5) 
-
 def seedsPlates(planet,planetGenerator):
     planet.plates=Graph()
     planet.plates.add_vertex(planet.meshCenters.num_vertices())
@@ -22,10 +20,10 @@ def seedsPlates(planet,planetGenerator):
     for i in range(planetGenerator.numberPlates):
         planet.plates.vp.color[seeds[i]]=i
         
-def _colorPlates(planet,random,queue):
-    if(len(queue)==0):
-        return
-    else:
+def colorPlates(planet,planetGenerator):
+    random=planetGenerator.random
+    queue=[i for i,p in enumerate(planet.plates.vp.color.a) if p>=0]
+    while(len(queue)>0):
         index=random.choice(queue)
         uncoloredNeighbors=[n for n in planet.meshCenters.vertex(index).out_neighbors() if planet.plates.vp.color[n]<0]
         if(len(uncoloredNeighbors)>0):
@@ -34,9 +32,6 @@ def _colorPlates(planet,random,queue):
             queue.append(newIndex)
         else:
             queue.remove(index)
-    _colorPlates(planet,random,queue)
-def colorPlates(planet,planetGenerator):
-    _colorPlates(planet,planetGenerator.random,[i for i,p in enumerate(planet.plates.vp.color.a) if p>=0])  
     
     def plotPlatesBorders(self,ax,*args,**kwargs):
         edges=[[int(e.source()),int(e.target())] for e in self.meshCorners.edges() 
