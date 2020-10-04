@@ -8,6 +8,7 @@ import cartopy.crs as ccrs
 from ortools.algorithms import pywrapknapsack_solver
 from graph_tool.all import *
 from scipy.linalg import pinv
+import pyshtools as pysh
 
 def seedsPlates(planet,planetGenerator):
     planet.plates=Graph()
@@ -106,23 +107,13 @@ def platesResistanceMatrix(planet,planetGenerator):
     planet.plates.vertex_properties["resistance"] = planet.plates.new_vertex_property("object")
     for k in range(planetGenerator.numberPlates):
         u=GraphView(planet.meshCenters,vfilt=planet.plates.vp.color.a==k)
-        l=u.ep.length.a
-        conductance=1/l
-        cprop=u.new_edge_property("float")
-        cprop.a=conductance
-        
-        L=pinv(laplacian(u,weight=cprop).todense())
-        P=np.full_like(L,planet.parameters.radius/u.num_vertices())
-        G=L+P
-        diag=G[np.arange(len(G)),np.arange(len(G))]
-        d1,d2=np.meshgrid(diag,diag)
-        R=d1+d2-2*G
-        
-        
-        
-        d=dict(zip(u.get_vertices(),np.arange(u.num_vertices())))
         for n in u.vertices():
-            planet.plates.vp.resistance[int(n)]={k:R[d[int(n)],d[k]] for k in d}
+            d=dict(zip(map(int,list(u.vertices())),list(shortest_distance(u,source=n,weights=u.ep.length))))
+            planet.plates.vp.resistance[n]=d
+        
+        
+        
+        
 def relief(planet,planetGenerator):
     def randomSpeed():
             platesRotationAxes=planetGenerator.random.normal(size=(planetGenerator.numberPlates,3))
@@ -137,9 +128,9 @@ def relief(planet,planetGenerator):
                 planet.plates.vp.speed[n]=speeds[i]
     randomSpeed()
     def plotPlatesSpeed(self,ax,*args,**kwargs):
-        dt=2/100./np.sqrt(planet.meshCenters.num_vertices())
-        p0=np.array(list(planet.meshCenters.vp.center))
-        p1=p0+dt*np.array(list(planet.plates.vp.speed))
+        dt=2/100./np.sqrt(self.meshCenters.num_vertices())
+        p0=np.array(list(self.meshCenters.vp.center))
+        p1=p0+dt*np.array(list(self.plates.vp.speed))
         lat0,long0=Projection().toLatLong(p0,"deg")
         lat1,long1=Projection().toLatLong(p1,"deg")
         lines=[[(long0[i],lat0[i]),(long1[i],lat1[i])] for i,_ in enumerate(lat0)]
@@ -168,77 +159,84 @@ def relief(planet,planetGenerator):
         edges=[[edge.source(),edge.target(),planet.meshCorners.ep.separates[edge][0],planet.meshCorners.ep.separates[edge][1],planet.meshCorners.ep.length[edge]] for edge in planet.meshCorners.edges() 
        if planet.plates.vp.color[planet.meshCorners.ep.separates[edge][0]]
        != planet.plates.vp.color[planet.meshCorners.ep.separates[edge][1]]]
+        l=2*planet.parameters.radius/np.sqrt(planetGenerator.numberTiles)
         for corner_i,corner_j,tile_a,tile_b,length in edges:
             #continental interaction
             if(planet.meshCenters.vp.elevation[tile_a]>0 and planet.meshCenters.vp.elevation[tile_b]>0):                
                 #continental collision, creates mountain range
                 addedElevation=0
+                
                 if(planet.plates.vp.pressure[tile_a]>0):
-                    addedElevation+=planet.plates.vp.pressure[tile_a]/planet.meshCenters.vp.area[tile_a]**.5*1.5
+                    addedElevation+=planet.plates.vp.pressure[tile_a]/planet.meshCenters.vp.area[tile_a]**.5*3*(l/250)
                 if(planet.plates.vp.pressure[tile_b]>0):
-                    addedElevation+=planet.plates.vp.pressure[tile_b]/planet.meshCenters.vp.area[tile_b]**.5*1.5
+                    addedElevation+=planet.plates.vp.pressure[tile_b]/planet.meshCenters.vp.area[tile_b]**.5*3*(l/250)
                 if(planet.plates.vp.pressure[tile_a]>0):
                     for onSamePlate,distance in planet.plates.vp.resistance[tile_a].items():
-                        planet.meshCenters.vp.elevation[onSamePlate]+=np.exp(-(distance)/125)*addedElevation
+                        planet.meshCenters.vp.elevation[onSamePlate]+=np.exp(-(distance/300)**2/2)*addedElevation
                 if(planet.plates.vp.pressure[tile_b]>0):
                     for onSamePlate,distance in planet.plates.vp.resistance[tile_b].items():
-                        planet.meshCenters.vp.elevation[onSamePlate]+=np.exp(-(distance)/125)*addedElevation
-                        
+                        planet.meshCenters.vp.elevation[onSamePlate]+=np.exp(-(distance/300)**2/2)*addedElevation
+                      
                 #continental rift
                 addedElevation=0
                 if(planet.plates.vp.pressure[tile_a]<0):
-                    addedElevation+=planet.plates.vp.pressure[tile_a]/planet.meshCenters.vp.area[tile_a]**.5*1.5
+                    addedElevation+=planet.plates.vp.pressure[tile_a]/planet.meshCenters.vp.area[tile_a]*2.5*l
                 if(planet.plates.vp.pressure[tile_b]<0):
-                    addedElevation+=planet.plates.vp.pressure[tile_b]/planet.meshCenters.vp.area[tile_b]**.5*1.5   
+                    addedElevation+=planet.plates.vp.pressure[tile_b]/planet.meshCenters.vp.area[tile_b]*2.5*l 
                 if(planet.plates.vp.pressure[tile_a]<0):
                     for onSamePlate,distance in planet.plates.vp.resistance[tile_a].items():
-                        planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+(distance/200)**5)*addedElevation
+                        planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+(distance/1000)**4)*addedElevation
                 if(planet.plates.vp.pressure[tile_b]<0):
                     for onSamePlate,distance in planet.plates.vp.resistance[tile_b].items():
-                        planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+(distance/200)**5)*addedElevation
+                        planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+(distance/1000)**4)*addedElevation
+                
             #oceanic/continental interaction
             #subduction
             def subduction(continent,ocean):
                 pressureContinent=planet.plates.vp.pressure[continent]
                 areaContinent=planet.meshCenters.vp.area[continent]
                 if(pressureContinent>0):
-                    addedElevation=1.5*pressureContinent/areaContinent**.5
+                    addedElevation=2*pressureContinent/areaContinent**.5*(l/250)
                     for onSamePlate,distance in planet.plates.vp.resistance[continent].items():
-                        planet.meshCenters.vp.elevation[onSamePlate]+=np.exp(-(distance/100)**2/2)*addedElevation
+                        planet.meshCenters.vp.elevation[onSamePlate]+=np.exp(-(distance/400))*addedElevation
                 pressureOcean=planet.plates.vp.pressure[ocean]
                 areaOcean=planet.meshCenters.vp.area[ocean]
                 if(pressureOcean>0):
-                    addedElevation=-pressureOcean/areaOcean**.5
+                    addedElevation=-pressureOcean/areaOcean**.5*(l/250)
                     for onSamePlate,distance in planet.plates.vp.resistance[ocean].items():
-                        planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+distance/600)*addedElevation
-                    addedElevation=(planet.meshCenters.vp.elevation[continent]-planet.meshCenters.vp.elevation[ocean])*.8
+                        planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+distance/500)*addedElevation
+                    addedElevation=(planet.meshCenters.vp.elevation[continent]-planet.meshCenters.vp.elevation[ocean])*.7*l/250
                     for onSamePlate,distance in planet.plates.vp.resistance[ocean].items():
-                        planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+(distance/100)**3)*addedElevation
+                        planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+(distance/500)**2)*addedElevation
             if(planet.meshCenters.vp.elevation[tile_a]>0 and planet.meshCenters.vp.elevation[tile_b]<0):
                 subduction(tile_a,tile_b)
             if(planet.meshCenters.vp.elevation[tile_b]>0 and planet.meshCenters.vp.elevation[tile_a]<0):
                 subduction(tile_b,tile_a)
+                
             #emergence
             def emergence(continent,ocean):
                 pressureContinent=planet.plates.vp.pressure[continent]
                 areaContinent=planet.meshCenters.vp.area[continent]
                 if(pressureContinent<0):
-                    addedElevation=-.1*pressureContinent/areaContinent**.5
+                    addedElevation=-1*pressureContinent/areaContinent**.5
                     for onSamePlate,distance in planet.plates.vp.resistance[continent].items():
-                        planet.meshCenters.vp.elevation[onSamePlate]+=np.exp(-(distance/100)**2/2)*addedElevation
+                        planet.meshCenters.vp.elevation[onSamePlate]+=np.exp(-(distance/200)**2/2)*addedElevation
                 pressureOcean=planet.plates.vp.pressure[ocean]
                 areaOcean=planet.meshCenters.vp.area[ocean]
+                
                 if(pressureOcean<0):
-                    addedElevation=pressureOcean/areaOcean**.5*.2
+                    addedElevation=pressureOcean/areaOcean**.5*.2*(l/250)
                     for onSamePlate,distance in planet.plates.vp.resistance[ocean].items():
                         planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+distance/600)*addedElevation
-                    addedElevation=(planet.meshCenters.vp.elevation[continent]-planet.meshCenters.vp.elevation[ocean])*.2
+                    addedElevation=(planet.meshCenters.vp.elevation[continent]-planet.meshCenters.vp.elevation[ocean])*.2*(l/250)
                     for onSamePlate,distance in planet.plates.vp.resistance[ocean].items():
-                        planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+(distance/100)**4)*addedElevation*2
+                        planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+(distance/600)**4)*addedElevation*2
+                
             if(planet.meshCenters.vp.elevation[tile_a]>0 and planet.meshCenters.vp.elevation[tile_b]<0):
                 emergence(tile_a,tile_b)
             if(planet.meshCenters.vp.elevation[tile_b]>0 and planet.meshCenters.vp.elevation[tile_a]<0):
                 emergence(tile_b,tile_a)
+                
             #oceanic interaction
             
             elevationA=planet.meshCenters.vp.elevation[tile_a]
@@ -255,9 +253,25 @@ def relief(planet,planetGenerator):
                     addedElevation-=pressureA/areaA**.5*.15
                     addedElevation-=pressureB/areaB**.5*.15
                     for onSamePlate,distance in planet.plates.vp.resistance[tile_a].items():
-                        planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+(distance/100)**2)*(addedElevation-elevationDifference)
+                        planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+(distance/500)**2)*(addedElevation-elevationDifference)*l/250
                     for onSamePlate,distance in planet.plates.vp.resistance[tile_b].items():
-                        planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+(distance/100)**2)*(addedElevation+elevationDifference)
+                        planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+(distance/500)**2)*(addedElevation+elevationDifference)*l/250
+                #convergence
+                addedElevation=0
+                if(pressureA>0 and pressureB>0):
+                    elevationDifference=(elevationA-elevationB)*.5
+                    areaA=planet.meshCenters.vp.area[tile_a]
+                    areaB=planet.meshCenters.vp.area[tile_b]
+                    if(planet.meshCenters.vp.elevation[tile_a]>planet.meshCenters.vp.elevation[tile_b]):
+                        addedElevation=pressureA/areaA**.5*.15*l/250
+                    else:
+                        addedElevation=pressureB/areaB**.5*.15*l/250
+                    for onSamePlate,distance in planet.plates.vp.resistance[tile_a].items():
+                        planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+(distance/500)**2)*(addedElevation-elevationDifference)*l/250
+                    for onSamePlate,distance in planet.plates.vp.resistance[tile_b].items():
+                        planet.meshCenters.vp.elevation[onSamePlate]+=1/(1+(distance/500)**2)*(-addedElevation+elevationDifference)*l/250
+                
+                
             
     computeRelief()
     def plotRelief(self,ax,*args,**kwargs):
@@ -281,3 +295,15 @@ def relief(planet,planetGenerator):
         colors=list(map(color,elevations))
         ax.add_collection(mc.PolyCollection(polygons,*args,transform=ccrs.Geodetic(),facecolors=colors,**kwargs))
     planet.plotRelief=types.MethodType(plotRelief,planet)
+def randomRelief(planet,planetGenerator):
+    lmax=100
+    lmin=50
+    degrees = np.arange(lmin,lmax+1, dtype=np.float)
+    power = 200/degrees**2/(2*degrees+1)
+
+    coeffs_global = pysh.SHCoeffs.from_random(power,seed=planetGenerator.random.randint(2**32))
+
+    positions=np.array(list(planet.meshCenters.vp.center))
+    lat,long=Projection().toLatLong(positions)
+    new_elevation=coeffs_global.expand(lat=lat,lon=long)
+    planet.meshCenters.vp.elevation.a+=new_elevation

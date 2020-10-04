@@ -6,19 +6,24 @@ from scipy.spatial import SphericalVoronoi
 from graph_tool.all import *
 from matplotlib import collections as mc
 
-def meshSeeds(planet,planetGenerator):
-    
+def uniformPoints(N,offset):
     phi=1.324717957244746025960908854
-    offset=planetGenerator.random.randint(2**32)
-    
-    N=planetGenerator.numberTiles
     u=np.modf((offset+np.arange(1,N+1))/phi)[0]
     v=np.modf((offset+np.arange(1,N+1))/phi**2)[0]
     l=np.arccos(2*u-1)+np.pi/2
     p=2*np.pi*v
     points=np.array([np.cos(l)*np.cos(p),np.cos(l)*np.sin(p),np.sin(l)]).transpose()
+    return points
+
+def meshSeeds(planet,planetGenerator):
+    
+    offset=planetGenerator.random.randint(2**32)    
+    N=planetGenerator.numberTiles
+
+    points=uniformPoints(N,offset)
     #add some random displacement otherwise tiles near the equator are aligned
-    points+=planetGenerator.random.normal(loc=0,scale=1e-2,size=np.shape(points))
+    l=2*planet.parameters.radius/np.sqrt(planetGenerator.numberTiles)
+    points+=planetGenerator.random.normal(loc=0,scale=1e-4*l,size=np.shape(points))
     points/=np.linalg.norm(points,axis=-1)[:,None]
     planet.meshPoints=points
     
@@ -27,7 +32,7 @@ def meshSeeds(planet,planetGenerator):
         ax.scatter(long,lat,*args,transform=ccrs.PlateCarree(),**kwargs)
     planet.plotMeshPoints=types.MethodType(plotMeshPoints,planet)
     
-def _relaxPoints(points,stagnation=1e-2):
+def _relaxPoints(points,stagnation=1e-3):
     """Relaxes a set of point to have a more organic and uniform distribution.
     This is done by doing a couple of iteration of Lloyd relaxation by replacing the Voronoi cell points by the baricenter of the corners of the Voronoi cells.
     """
@@ -72,6 +77,7 @@ def createGraph(planet,planetGenerator):
     centers.vertex_properties["center"] = centers.new_vertex_property("vector<float>")
     for v,center in zip(centers.vertices(),sv.points):
         centers.vp.center[v]=center
+        
       
     #for each cell, set its area in km^2. This is often used as a weight for the cell.
     centers.vertex_properties["area"] = centers.new_vertex_property("float")

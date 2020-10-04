@@ -1,7 +1,7 @@
 from planet import Planet,PlanetParameters
 import numpy as np
 from mesh_generator import meshSeeds,relaxMesh,createGraph
-from plates_generator import seedsPlates,colorPlates,platesElevation,platesResistanceMatrix,relief
+from plates_generator import seedsPlates,colorPlates,platesElevation,platesResistanceMatrix,relief,randomRelief
 from copy import deepcopy
 from timeit import timeit
 from si_prefix import si_format
@@ -9,8 +9,8 @@ from warnings import warn
 
 class PlanetGenerator:  
     
-    callbacks=[meshSeeds,relaxMesh,createGraph,seedsPlates,colorPlates,platesElevation,platesResistanceMatrix,relief]
-    callbacksDescription=["Generate mesh seeds","Relax mesh points","Create graph","Pick plates seeds","Color plates","Pick plates type","Compute resistance matrix within plates","Generate relief"]
+    callbacks=[meshSeeds,relaxMesh,createGraph,seedsPlates,colorPlates,platesElevation,platesResistanceMatrix,relief,randomRelief]
+    callbacksDescription=["Generate mesh seeds","Relax mesh points","Create graph","Pick plates seeds","Color plates","Pick plates type","Compute resistance matrix within plates","Generate relief","Add random relief"]
     numberSteps=len(callbacks)    
     
     def __init__(self,parameters,numberTiles,seed=0,numberPlates=30,flood=0.6,saveIntermediates=False):
