@@ -1,2 +1,2 @@
 ![Screenshot](planet.jpeg)
-![Screenshot](planisphere.jpeg)
+![Screenshot](planispher.jpeg)
