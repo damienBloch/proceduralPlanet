@@ -1,1 +1,1 @@
-![Screenshot](planet.pdf)
+![Screenshot](planet.jpeg)
